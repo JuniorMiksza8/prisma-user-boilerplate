@@ -1,53 +1,66 @@
 import { compare } from 'bcrypt'
-import { Router } from 'express'
-import { signUserToken } from '../../services/jwt'
-import { PostSigninDTO } from './auth.dto'
-import { findRefreshToken, findUserByID, findUserByUsername } from './auth.service'
+import { Router, Request, Response } from 'express'
+import { JwtService } from '../../services/jwt'
+import { PostRenewDTO, PostSigninDTO } from './auth.dto'
+import { AuthService } from './auth.service'
 import { omit } from 'lodash'
-const signInRouter = Router()
+import { Body, JsonController, NotFoundError, Post, Req, Res } from 'routing-controllers'
+import { isAfter } from 'date-fns'
+import getUnixTime from 'date-fns/getUnixTime'
 
-signInRouter.route('/signin').post(async (req, res) => {
-    const { username, password } = req.body as PostSigninDTO
+@JsonController('/auth')
+export class AuthController {
+    authService = new AuthService()
+    jwtService = new JwtService()
 
-    const user = await findUserByUsername(username)
+    @Post('/signin')
+    async SignIn(@Body() body: PostSigninDTO, @Res() res: Response) {
+        const { username, password } = body
 
-    if (!user) {
-        return res.status(404).json({
-            message: 'username or password invalid',
+        const user = await this.authService.findUserByUsername(username)
+
+        if (!user) {
+            return res.status(404).json({
+                message: 'username or password invalid',
+            })
+        }
+
+        const isValid = await compare(password, user.password)
+
+        if (!isValid) {
+            return res.status(404).json({
+                message: 'username or password invalid',
+            })
+        }
+
+        const accessToken = this.jwtService.signUserToken(user.id)
+        const refreshToken = await this.authService.generateRefreshToken(user.id)
+
+        return res.json({
+            accessToken,
+            refreshToken,
+            user: omit(user, ['password', 'salt']),
         })
     }
 
-    const isValid = await compare(password, user.password)
+    @Post('/renew')
+    async renew(@Body() body: PostRenewDTO, @Res() res: Response) {
+        const { refreshToken } = body
 
-    if (!isValid) {
-        return res.status(404).json({
-            message: 'username or password invalid',
-        })
+        const token = await this.authService.findRefreshToken(refreshToken)
+
+        if (!token) {
+            throw new NotFoundError('refresh token not found')
+        }
+
+        if (isAfter(getUnixTime(new Date()), token.expiresIn)) {
+            return res.status(400).json({ message: 'refresh token expired' })
+        }
+
+        const accessToken = this.jwtService.signUserToken(token.userId)
+
+        return {
+            accessToken,
+        }
     }
-
-    const accessToken = signUserToken(user.id)
-
-    return res.json({
-        accessToken,
-        user: omit(user, ['password', 'salt']),
-    })
-})
-
-signInRouter.route('/renew').post(async (req, res) => {
-    const { refreshToken } = req.body
-
-    const token = await findRefreshToken(refreshToken)
-
-    if (!token) {
-        return res.status(404).json({ message: 'token not found' })
-    }
-
-    const user = await findUserByID(token.userId)
-
-    return res.json({
-        user,
-        refreshToken: token,
-    })
-})
-
-export default signInRouter
+}

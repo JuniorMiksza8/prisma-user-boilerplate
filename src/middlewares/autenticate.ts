@@ -1,8 +1,10 @@
 import { Response, Request, NextFunction } from 'express'
-import { UserTokenPayload, verifyUserToken } from '../services/jwt'
+import { JwtService, UserTokenPayload } from '../services/jwt'
 
 export function autenticateUserMiddleware(req: Request, res: Response, next: NextFunction) {
-    const token = req.headers['x-access-token'] as string
+    const jwtService = new JwtService()
+
+    const token = (req.headers['x-access-token'] as string) || (req.headers['access-token'] as string)
 
     if (!token) {
         return res.status(401).json({
@@ -10,7 +12,7 @@ export function autenticateUserMiddleware(req: Request, res: Response, next: Nex
         })
     }
 
-    const payload = verifyUserToken(token) as UserTokenPayload
+    const payload = jwtService.verifyUserToken(token) as UserTokenPayload
 
     if (!payload) {
         return res.status(401).json({

@@ -1,87 +1,79 @@
 import { PrismaClientKnownRequestError, PrismaClientValidationError } from '@prisma/client/runtime'
-import { Router } from 'express'
+import { Response, Router } from 'express'
 import { omit } from 'lodash'
+import { Body, Delete, Get, JsonController, Param, Post, Put, Res, UseBefore } from 'routing-controllers'
 import { hashPassword } from '../../helpers/hashPassword'
 import { autenticateUserMiddleware } from '../../middlewares/autenticate'
 import { CreateUserDTO, UpdateUserDTO } from './user.dto'
-import { createUser, deleteUser, findManyUsers, updateUser } from './user.service'
+import { UserService } from './user.service'
 
-const userRouter = Router()
+@JsonController('/user')
+@UseBefore(autenticateUserMiddleware)
+export class UserController {
+    userService = new UserService()
 
-userRouter.route('/user').get(autenticateUserMiddleware, async (req, res) => {
-    try {
-        const users = await findManyUsers()
-
-        return res.json(users)
-    } catch (error) {
-        console.log(error)
-        return res.status(500).send()
+    @Get()
+    async findUsers() {
+        return this.userService.findManyUsers()
     }
-})
 
-userRouter.route('/user').post(autenticateUserMiddleware, async (req, res) => {
-    try {
-        let { password, username, email } = req.body as CreateUserDTO
+    @Post()
+    async createUser(@Body() body: CreateUserDTO, @Res() res: Response) {
+        try {
+            let { password, username, email } = body
 
-        const { hash, salt } = await hashPassword(password)
+            const { hash, salt } = await hashPassword(password)
 
-        const user = {
-            username,
-            email,
-            password: hash,
-            salt,
+            const user = {
+                username,
+                email,
+                password: hash,
+                salt,
+            }
+
+            const newUser = await this.userService.createUser(user)
+
+            return res.status(201).json(omit(newUser, ['password', 'salt']))
+        } catch (error) {
+            if (error instanceof PrismaClientKnownRequestError) {
+                const target = (error.meta as any).target
+                return res.status(400).json({ message: `duplicate entry on fields: ${target.join(',')}` })
+            }
+            if (error instanceof PrismaClientValidationError) {
+                return res.status(400).json({ message: 'invalid user' })
+            }
+            return res.status(500).send()
         }
-
-        const newUser = await createUser(user)
-
-        return res.status(201).json(omit(newUser, ['password', 'salt']))
-    } catch (error) {
-        if (error instanceof PrismaClientKnownRequestError) {
-            const target = (error.meta as any).target
-            return res.status(400).json({ message: `duplicate entry on fields: ${target.join(',')}` })
-        }
-        if (error instanceof PrismaClientValidationError) {
-            return res.status(400).json({ message: 'invalid user' })
-        }
-        return res.status(500).send()
     }
-})
 
-userRouter.route(`/user/:id`).put(autenticateUserMiddleware, async (req, res) => {
-    try {
-        const { id } = req.params
-
-        const { email } = req.body
+    @Put('/:id')
+    async updateUser(@Body() body: UpdateUserDTO, @Param('id') id: string, @Res() res: Response) {
+        const { email } = body
 
         const data = {
             email,
-        } as UpdateUserDTO
+        }
 
-        const user = await updateUser(id, data)
+        const user = await this.userService.updateUser(id, data)
 
         return res.status(200).json(omit(user, ['password', 'salt']))
-    } catch (error) {
-        return res.status(500).send()
     }
-})
 
-userRouter.route('/user/:id').delete(autenticateUserMiddleware, async (req, res) => {
-    const { id } = req.params
+    @Delete('/:id')
+    async deleteUser(@Param('id') id: string, @Res() res: Response) {
+        try {
+            const deleted = await this.userService.deleteUser(id)
 
-    try {
-        const deleted = await deleteUser(id)
-
-        return res.status(200).json({ deleted })
-    } catch (error) {
-        if (error instanceof PrismaClientKnownRequestError) {
-            const message = (error.meta as any).cause
-            if (error.code === 'P2025') {
-                return res.status(400).json({ message: 'user doest not exist' })
+            return res.status(200).json({ deleted })
+        } catch (error) {
+            if (error instanceof PrismaClientKnownRequestError) {
+                if (error.code === 'P2025') {
+                    return res.status(400).json({ message: 'user doest not exist' })
+                }
+                const message = (error.meta as any).cause
+                return res.status(400).json({ message })
             }
-            return res.status(400).json({ message })
+            return res.status(500).send()
         }
-        return res.status(500).send()
     }
-})
-
-export default userRouter
+}

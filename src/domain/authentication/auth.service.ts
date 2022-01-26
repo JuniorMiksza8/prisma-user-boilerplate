@@ -1,25 +1,39 @@
 import { database } from '../../database'
+import { addDays, getUnixTime } from 'date-fns'
 
-export function findUserByUsername(username: string) {
-    return database.user.findFirst({
-        where: {
-            username,
-        },
-    })
-}
+export class AuthService {
+    generateRefreshToken(userId: string) {
+        const expiresIn = getUnixTime(addDays(new Date(), 1))
 
-export function findRefreshToken(token: string) {
-    return database.refreshToken.findFirst({
-        where: {
-            token,
-        },
-    })
-}
+        return database.refreshToken.create({
+            data: {
+                expiresIn,
+                userId,
+            },
+        })
+    }
 
-export function findUserByID(id: string) {
-    return database.user.findFirst({
-        where: {
-            id,
-        },
-    })
+    findUserByUsername(username: string) {
+        return database.user.findFirst({
+            where: {
+                username,
+            },
+        })
+    }
+
+    findRefreshToken(token: string) {
+        return database.refreshToken.findFirst({
+            where: {
+                token,
+            },
+        })
+    }
+
+    findUserByID(id: string) {
+        return database.user.findFirst({
+            where: {
+                id,
+            },
+        })
+    }
 }
