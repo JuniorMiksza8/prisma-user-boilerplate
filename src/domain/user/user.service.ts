@@ -1,39 +1,50 @@
 import { Prisma } from '@prisma/client'
 import { database } from '../../database'
 
-export function createUser(data: Prisma.UserCreateInput) {
-    return database.user.create({
-        data,
-    })
-}
+export class UserService {
+    createUser(data: Prisma.UserCreateInput) {
+        return database.user.create({
+            data,
+        })
+    }
 
-export function findManyUsers() {
-    return database.user.findMany({
-        select: {
-            id: true,
-            username: true,
-            email: true,
-            createdAt: true,
-            updatedAt: true,
-            password: false,
-            salt: false,
-        },
-    })
-}
+    findManyUsers() {
+        return database.user.findMany({
+            select: {
+                id: true,
+                username: true,
+                email: true,
+                createdAt: true,
+                updatedAt: true,
+                password: false,
+                salt: false,
+            },
+            where: {
+                deletedAt: null,
+            },
+        })
+    }
 
-export function deleteUser(id: string) {
-    return database.user.delete({
-        where: {
-            id,
-        },
-    })
-}
+    deleteUser(id: string) {
+        return database.user.update({
+            where: {
+                id,
+            },
+            data: {
+                deletedAt: new Date(),
+            },
+        })
+    }
 
-export function updateUser(id: string, data: Prisma.UserUpdateInput) {
-    return database.user.update({
-        where: {
-            id,
-        },
-        data,
-    })
+    updateUser(id: string, data: Prisma.UserUpdateInput) {
+        return database.user.update({
+            where: {
+                id,
+            },
+            data: {
+                ...data,
+                updatedAt: new Date(),
+            },
+        })
+    }
 }

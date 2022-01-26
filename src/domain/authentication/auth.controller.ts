@@ -1,18 +1,23 @@
 import { compare } from 'bcrypt'
 import { Router, Request, Response } from 'express'
-import { signUserToken } from '../../services/jwt'
-import { PostSigninDTO } from './auth.dto'
-import { findRefreshToken, findUserByID, findUserByUsername } from './auth.service'
+import { JwtService } from '../../services/jwt'
+import { PostRenewDTO, PostSigninDTO } from './auth.dto'
+import { AuthService } from './auth.service'
 import { omit } from 'lodash'
-import { Body, JsonController, Post, Req, Res } from 'routing-controllers'
+import { Body, JsonController, NotFoundError, Post, Req, Res } from 'routing-controllers'
+import { isAfter } from 'date-fns'
+import getUnixTime from 'date-fns/getUnixTime'
 
 @JsonController('/auth')
 export class AuthController {
+    authService = new AuthService()
+    jwtService = new JwtService()
+
     @Post('/signin')
     async SignIn(@Body() body: PostSigninDTO, @Res() res: Response) {
         const { username, password } = body
 
-        const user = await findUserByUsername(username)
+        const user = await this.authService.findUserByUsername(username)
 
         if (!user) {
             return res.status(404).json({
@@ -28,29 +33,34 @@ export class AuthController {
             })
         }
 
-        const accessToken = signUserToken(user.id)
+        const accessToken = this.jwtService.signUserToken(user.id)
+        const refreshToken = await this.authService.generateRefreshToken(user.id)
 
         return res.json({
             accessToken,
+            refreshToken,
             user: omit(user, ['password', 'salt']),
         })
     }
 
     @Post('/renew')
-    async renew(@Req() req: Request, @Res() res: Response) {
-        const { refreshToken } = req.body
+    async renew(@Body() body: PostRenewDTO, @Res() res: Response) {
+        const { refreshToken } = body
 
-        const token = await findRefreshToken(refreshToken)
+        const token = await this.authService.findRefreshToken(refreshToken)
 
         if (!token) {
-            return res.status(404).json({ message: 'token not found' })
+            throw new NotFoundError('refresh token not found')
         }
 
-        const user = await findUserByID(token.userId)
+        if (isAfter(getUnixTime(new Date()), token.expiresIn)) {
+            return res.status(400).json({ message: 'refresh token expired' })
+        }
 
-        return res.json({
-            user,
-            refreshToken: token,
-        })
+        const accessToken = this.jwtService.signUserToken(token.userId)
+
+        return {
+            accessToken,
+        }
     }
 }

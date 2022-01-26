@@ -5,14 +5,16 @@ import { Body, Delete, Get, JsonController, Param, Post, Put, Res, UseBefore } f
 import { hashPassword } from '../../helpers/hashPassword'
 import { autenticateUserMiddleware } from '../../middlewares/autenticate'
 import { CreateUserDTO, UpdateUserDTO } from './user.dto'
-import { createUser, deleteUser, findManyUsers, updateUser } from './user.service'
+import { UserService } from './user.service'
 
 @JsonController('/user')
 @UseBefore(autenticateUserMiddleware)
 export class UserController {
+    userService = new UserService()
+
     @Get()
     async findUsers() {
-        return findManyUsers()
+        return this.userService.findManyUsers()
     }
 
     @Post()
@@ -29,7 +31,7 @@ export class UserController {
                 salt,
             }
 
-            const newUser = await createUser(user)
+            const newUser = await this.userService.createUser(user)
 
             return res.status(201).json(omit(newUser, ['password', 'salt']))
         } catch (error) {
@@ -44,7 +46,7 @@ export class UserController {
         }
     }
 
-    @Put(':id')
+    @Put('/:id')
     async updateUser(@Body() body: UpdateUserDTO, @Param('id') id: string, @Res() res: Response) {
         const { email } = body
 
@@ -52,15 +54,15 @@ export class UserController {
             email,
         }
 
-        const user = await updateUser(id, data)
+        const user = await this.userService.updateUser(id, data)
 
         return res.status(200).json(omit(user, ['password', 'salt']))
     }
 
-    @Delete('id')
+    @Delete('/:id')
     async deleteUser(@Param('id') id: string, @Res() res: Response) {
         try {
-            const deleted = await deleteUser(id)
+            const deleted = await this.userService.deleteUser(id)
 
             return res.status(200).json({ deleted })
         } catch (error) {

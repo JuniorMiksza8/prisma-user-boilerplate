@@ -17,14 +17,17 @@ model User {
   password     String
   salt         String
   updatedAt    DateTime      @default(now())
+  deletedAt    DateTime?    
   createdAt    DateTime      @default(now())
-  refreshToken RefreshToken?
+  refreshToken RefreshToken[]
 }
 
 model RefreshToken {
   id        String @id @default(uuid())
-  token     String
+  token     String     @default(uuid())
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @default(now())
   expiresIn Int
   user      User   @relation(fields: [userId], references: [id])
-  userId    String @unique
+  userId    String 
 }

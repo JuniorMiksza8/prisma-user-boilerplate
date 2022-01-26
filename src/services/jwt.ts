@@ -5,13 +5,14 @@ export interface UserTokenPayload {
     id: string
 }
 
-export function signUserToken(id: User['id']) {
-    const { JWT_PRIVATE_KEY = '' } = process.env
+export class JwtService {
+    signUserToken(id: User['id']) {
+        const { JWT_PRIVATE_KEY = '' } = process.env
 
-    return sign({ id }, JWT_PRIVATE_KEY, { expiresIn: '24h' })
-}
-
-export function verifyUserToken(token: string) {
-    const { JWT_PRIVATE_KEY = '' } = process.env
-    return verify(token, JWT_PRIVATE_KEY)
+        return sign({ id }, JWT_PRIVATE_KEY, { expiresIn: '24h', subject: id })
+    }
+    verifyUserToken(token: string) {
+        const { JWT_PRIVATE_KEY = '' } = process.env
+        return verify(token, JWT_PRIVATE_KEY)
+    }
 }
