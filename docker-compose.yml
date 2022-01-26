@@ -1,0 +1,17 @@
+version: '3'
+
+services:
+    voucher_web:
+        image: node:latest
+        network_mode : host
+        ports:
+            - '${HTTP_SERVER_PORT}:${HTTP_SERVER_PORT}'
+            - '8001:8001'
+        volumes:
+            - .:/var/www/app
+    postgres:
+        image: postgres:latest
+        network_mode : host
+        container_name: voucher_pg
+        environment:
+          - POSTGRES_PASSWORD=docker
