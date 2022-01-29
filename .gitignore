@@ -6,3 +6,6 @@ yarn.lock
 yarn-error.log
 *.db
 *.db-journal
+*/migrations
+*/*.db
+
