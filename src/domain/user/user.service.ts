@@ -8,6 +8,15 @@ export class UserService {
         })
     }
 
+    findSingleUser(id: string) {
+        return database.user.findFirst({
+            where: {
+                id,
+                deletedAt: null,
+            },
+        })
+    }
+
     findManyUsers() {
         return database.user.findMany({
             select: {

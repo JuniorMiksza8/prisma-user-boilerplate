@@ -17,6 +17,9 @@ export class AuthService {
         return database.user.findFirst({
             where: {
                 username,
+                AND: {
+                    deletedAt: null,
+                },
             },
         })
     }

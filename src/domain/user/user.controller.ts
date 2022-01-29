@@ -8,7 +8,7 @@ import { CreateUserDTO, UpdateUserDTO } from './user.dto'
 import { UserService } from './user.service'
 
 @JsonController('/user')
-@UseBefore(autenticateUserMiddleware)
+// @UseBefore(autenticateUserMiddleware)
 export class UserController {
     userService = new UserService()
 
@@ -20,7 +20,7 @@ export class UserController {
     @Post()
     async createUser(@Body() body: CreateUserDTO, @Res() res: Response) {
         try {
-            let { password, username, email } = body
+            let { password, username, email, phone } = body
 
             const { hash, salt } = await hashPassword(password)
 
@@ -29,6 +29,7 @@ export class UserController {
                 email,
                 password: hash,
                 salt,
+                phone,
             }
 
             const newUser = await this.userService.createUser(user)

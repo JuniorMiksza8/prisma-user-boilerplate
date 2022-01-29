@@ -1,7 +1,8 @@
 import { Response, Request, NextFunction } from 'express'
+import { database } from '../database'
 import { JwtService, UserTokenPayload } from '../services/jwt'
 
-export function autenticateUserMiddleware(req: Request, res: Response, next: NextFunction) {
+export async function autenticateUserMiddleware(req: Request, res: Response, next: NextFunction) {
     const jwtService = new JwtService()
 
     const token = (req.headers['x-access-token'] as string) || (req.headers['access-token'] as string)
@@ -20,6 +21,17 @@ export function autenticateUserMiddleware(req: Request, res: Response, next: Nex
         })
     }
 
-    ;(req as any).user = payload.id
+    const user = await database.user.findFirst({
+        where: {
+            id: payload.id,
+            deletedAt: null,
+        },
+    })
+
+    if (!user) {
+        return res.status(401).json({ message: 'user not found' })
+    }
+
+    ;(req as any).user = user.id
     next()
 }

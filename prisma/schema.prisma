@@ -11,23 +11,78 @@ datasource db {
 }
 
 model User {
-  id           String        @id @default(uuid())
-  username     String        @unique
-  email        String        @unique
-  password     String
-  salt         String
-  updatedAt    DateTime      @default(now())
-  deletedAt    DateTime?    
-  createdAt    DateTime      @default(now())
-  refreshToken RefreshToken[]
+  id             String         @id @default(uuid())
+  username       String         @unique
+  email          String         @unique
+  phone          String         @unique
+  password       String
+  salt           String
+  updatedAt      DateTime       @default(now())
+  deletedAt      DateTime?
+  createdAt      DateTime       @default(now())
+  refreshToken   RefreshToken[]
+  owned_companys Company[]
 }
 
 model RefreshToken {
-  id        String @id @default(uuid())
-  token     String     @default(uuid())
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @default(now())
+  id        String   @id @default(uuid())
+  token     String   @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
   expiresIn Int
-  user      User   @relation(fields: [userId], references: [id])
-  userId    String 
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+}
+
+model Company {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  cnpj      String
+  ownerId   String
+  avatar    String?
+  email     String
+  phone     String
+  owner     User      @relation(fields: [ownerId], references: [id])
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  Event     Event[]
+}
+
+model Event {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  startDate DateTime?
+  endDate   DateTime?
+  deletedAt DateTime?
+  companyId String
+  company   Company   @relation(fields: [companyId], references: [id])
+  addresses Address[]
+  images    Image[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+}
+
+model Address {
+  id           String   @id @default(uuid())
+  street       String
+  postcode     String
+  neighborhood String
+  number       String
+  complement   String
+  city         String
+  state        String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now())
+  eventId      String
+  event        Event    @relation(fields: [eventId], references: [id])
+}
+
+model Image {
+  id        String   @id @default(uuid())
+  url       String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  eventId   String?
+  Event     Event?   @relation(fields: [eventId], references: [id])
 }
